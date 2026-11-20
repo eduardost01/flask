@@ -1,0 +1,189 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Painel financeiro{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+
+    <h2 class="fw-bold">Painel Financeiro</h2>
+
+    <p class="text-muted">
+        Utilize as ferramentas abaixo para realizar cálculos financeiros.
+    </p>
+
+</div>
+
+<div class="row g-4">
+
+    <!-- CARD IRPF -->
+
+    <div class="col-md-6">
+
+        <div class="card shadow-sm border-0 h-100">
+
+            <div class="card-header bg-primary text-white py-3">
+
+                <h5 class="mb-0">
+                    Cálculo de IRPF
+                </h5>
+
+            </div>
+
+            <div class="card-body p-4">
+
+                <p class="text-muted">
+                    Informe seu salário bruto mensal para estimar o desconto de Imposto de Renda.
+                </p>
+
+                <form method="post">
+
+                    <input type="hidden" name="tipo" value="irpf">
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Salário bruto mensal (R$)
+                        </label>
+
+                        <input
+                            type="number"
+                            name="salario"
+                            class="form-control"
+                            step="0.01"
+                            min="0.01"
+                            placeholder="Ex: 3500.00"
+                            required
+                        >
+
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        Calcular IRPF
+                    </button>
+
+                </form>
+
+                {% if resultado_irpf is not none %}
+
+                <div class="alert alert-success mt-4 mb-0">
+
+                    <h6>Resultado do cálculo</h6>
+
+                    <p class="mb-0">
+                        Desconto estimado de IRPF:
+                        <strong>
+                            R$ {{ "%.2f"|format(resultado_irpf) }}
+                        </strong>
+                    </p>
+
+                </div>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- CARD RESCISÃO -->
+
+    <div class="col-md-6">
+
+        <div class="card shadow-sm border-0 h-100">
+
+            <div class="card-header bg-success text-white py-3">
+
+                <h5 class="mb-0">
+                    Rescisão Trabalhista
+                </h5>
+
+            </div>
+
+            <div class="card-body p-4">
+
+                <p class="text-muted">
+                    Calcule o valor proporcional aproximado do 13º salário.
+                </p>
+
+                <form method="post">
+
+                    <input type="hidden" name="tipo" value="rescisao">
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Salário base (R$)
+                        </label>
+
+                        <input
+                            type="number"
+                            name="salario_rescisao"
+                            class="form-control"
+                            step="0.01"
+                            min="0.01"
+                            placeholder="Ex: 2500.00"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Meses trabalhados
+                        </label>
+
+                        <input
+                            type="number"
+                            name="meses"
+                            class="form-control"
+                            min="1"
+                            max="12"
+                            placeholder="Ex: 8"
+                            required
+                        >
+
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100">
+                        Calcular 13º salário
+                    </button>
+
+                </form>
+
+                {% if resultado_rescisao is not none %}
+
+                <div class="alert alert-success mt-4 mb-0">
+
+                    <h6>Resultado do cálculo</h6>
+
+                    <p class="mb-0">
+                        13º salário proporcional:
+                        <strong>
+                            R$ {{ "%.2f"|format(resultado_rescisao) }}
+                        </strong>
+                    </p>
+
+                </div>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="alert alert-info mt-4">
+
+    <strong>Importante:</strong>
+    Os resultados são estimativas didáticas. O cálculo do IRPF não considera todas as deduções individuais e o cálculo trabalhista considera somente o 13º salário proporcional.
+
+</div>
+
+{% endblock %}

@@ -1,116 +1,185 @@
+from PIL import Image
+import uuid
+import os
 import functools
 
-from flask import Blueprint
-from flask import flash
-from flask import g
-from flask import redirect
-from flask import render_template
-from flask import request
-from flask import session
-from flask import url_for
-from werkzeug.security import check_password_hash
-from werkzeug.security import generate_password_hash
+from flask import (
+    Blueprint, flash, g, redirect,
+    render_template, request, session,
+    url_for, current_app
+)
 
-from .db import get_db
+from werkzeug.security import (
+    generate_password_hash,
+    check_password_hash
+)
 
-bp = Blueprint("auth", __name__, url_prefix="/auth")
+from werkzeug.utils import secure_filename
+
+from . import db
+from .models import User
+
+
+bp = Blueprint('auth', __name__, url_prefix='/auth')
+
+
+def salvar_imagem(arquivo):
+
+    if arquivo and arquivo.filename:
+
+        nome = secure_filename(arquivo.filename)
+
+        if not nome or '.' not in nome:
+            return None
+
+        extensao = nome.rsplit('.', 1)[-1].lower()
+
+        formatos = {
+            'jpg': 'JPEG',
+            'jpeg': 'JPEG',
+            'png': 'PNG',
+            'gif': 'GIF',
+            'webp': 'WEBP'
+        }
+
+        if extensao not in formatos:
+            return None
+
+        try:
+
+            imagem = Image.open(arquivo.stream)
+
+            if imagem.format != formatos[extensao]:
+                return None
+
+            imagem.verify()
+
+            arquivo.stream.seek(0)
+
+            nome_final = uuid.uuid4().hex + '.' + extensao
+
+            caminho = os.path.join(
+                current_app.config['UPLOAD_FOLDER'],
+                nome_final
+            )
+
+            arquivo.save(caminho)
+
+            return nome_final
+
+        except Exception:
+            return None
+
+    return None
+
+
+@bp.before_app_request
+def carregar_usuario():
+
+    id_usuario = session.get('user_id')
+
+    if id_usuario is None:
+        g.user = None
+    else:
+        g.user = db.session.get(User, id_usuario)
+
+
+@bp.route('/register', methods=('GET', 'POST'))
+def register():
+
+    if request.method == 'POST':
+
+        username = request.form['username']
+        password = request.form['password']
+
+        arquivo = request.files.get('avatar')
+
+        error = None
+
+        if not username:
+            error = 'O nome de usuário é obrigatório.'
+
+        elif not password:
+            error = 'A senha é obrigatória.'
+
+        elif User.query.filter_by(username=username).first():
+            error = 'Este usuário já está cadastrado.'
+
+        nome_avatar = None
+
+        if error is None and arquivo and arquivo.filename:
+            nome_avatar = salvar_imagem(arquivo)
+
+            if nome_avatar is None:
+                error = 'Formato de imagem inválido.'
+
+        if error is not None:
+            flash(error)
+
+        else:
+
+            usuario = User(
+                username=username,
+                password=generate_password_hash(password),
+                avatar=nome_avatar
+            )
+
+            db.session.add(usuario)
+            db.session.commit()
+
+            return redirect(url_for('auth.login'))
+
+    return render_template('auth/register.html')
+
+
+@bp.route('/login', methods=('GET', 'POST'))
+def login():
+
+    if request.method == 'POST':
+
+        username = request.form['username']
+        password = request.form['password']
+
+        error = None
+
+        usuario = User.query.filter_by(
+            username=username
+        ).first()
+
+        if usuario is None:
+            error = 'Usuário não encontrado.'
+
+        elif not check_password_hash(usuario.password, password):
+            error = 'Senha incorreta.'
+
+        if error is None:
+
+            session.clear()
+            session['user_id'] = usuario.id
+
+            return redirect(url_for('index'))
+
+        flash(error)
+
+    return render_template('auth/login.html')
+
+
+@bp.route('/logout')
+def logout():
+
+    session.clear()
+
+    return redirect(url_for('index'))
 
 
 def login_required(view):
-    """View decorator that redirects anonymous users to the login page."""
 
     @functools.wraps(view)
     def wrapped_view(**kwargs):
+
         if g.user is None:
-            return redirect(url_for("auth.login"))
+            return redirect(url_for('auth.login'))
 
         return view(**kwargs)
 
     return wrapped_view
-
-
-@bp.before_app_request
-def load_logged_in_user():
-    """If a user id is stored in the session, load the user object from
-    the database into ``g.user``."""
-    user_id = session.get("user_id")
-
-    if user_id is None:
-        g.user = None
-    else:
-        g.user = (
-            get_db().execute("SELECT * FROM user WHERE id = ?", (user_id,)).fetchone()
-        )
-
-
-@bp.route("/register", methods=("GET", "POST"))
-def register():
-    """Register a new user.
-
-    Validates that the username is not already taken. Hashes the
-    password for security.
-    """
-    if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-        db = get_db()
-        error = None
-
-        if not username:
-            error = "Username is required."
-        elif not password:
-            error = "Password is required."
-
-        if error is None:
-            try:
-                db.execute(
-                    "INSERT INTO user (username, password) VALUES (?, ?)",
-                    (username, generate_password_hash(password)),
-                )
-                db.commit()
-            except db.IntegrityError:
-                # The username was already taken, which caused the
-                # commit to fail. Show a validation error.
-                error = f"User {username} is already registered."
-            else:
-                # Success, go to the login page.
-                return redirect(url_for("auth.login"))
-
-        flash(error)
-
-    return render_template("auth/register.html")
-
-
-@bp.route("/login", methods=("GET", "POST"))
-def login():
-    """Log in a registered user by adding the user id to the session."""
-    if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-        db = get_db()
-        error = None
-        user = db.execute(
-            "SELECT * FROM user WHERE username = ?", (username,)
-        ).fetchone()
-
-        if user is None:
-            error = "Incorrect username."
-        elif not check_password_hash(user["password"], password):
-            error = "Incorrect password."
-
-        if error is None:
-            # store the user id in a new session and return to the index
-            session.clear()
-            session["user_id"] = user["id"]
-            return redirect(url_for("index"))
-
-        flash(error)
-
-    return render_template("auth/login.html")
-
-
-@bp.route("/logout")
-def logout():
-    """Clear the current session, including the stored user id."""
-    session.clear()
-    return redirect(url_for("index"))

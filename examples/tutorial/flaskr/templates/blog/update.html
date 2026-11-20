@@ -1,19 +1,110 @@
+
 {% extends 'base.html' %}
 
-{% block header %}
-  <h1>{% block title %}Edit "{{ post['title'] }}"{% endblock %}</h1>
-{% endblock %}
+{% block title %}Editar publicação{% endblock %}
 
 {% block content %}
-  <form method="post">
-    <label for="title">Title</label>
-    <input name="title" id="title" value="{{ request.form['title'] or post['title'] }}" required>
-    <label for="body">Body</label>
-    <textarea name="body" id="body">{{ request.form['body'] or post['body'] }}</textarea>
-    <input type="submit" value="Save">
-  </form>
-  <hr>
-  <form action="{{ url_for('blog.delete', id=post['id']) }}" method="post">
-    <input class="danger" type="submit" value="Delete" onclick="return confirm('Are you sure?');">
-  </form>
+
+<div class="row justify-content-center">
+
+    <div class="col-lg-8">
+
+        <div class="card shadow-sm border-0">
+
+            <div class="card-header bg-dark text-white py-3">
+                <h4 class="mb-0">Editar publicação</h4>
+            </div>
+
+            <div class="card-body p-4">
+
+                <form method="post" enctype="multipart/form-data">
+
+                    <div class="mb-3">
+
+                        <label class="form-label">Título</label>
+
+                        <input
+                            type="text"
+                            name="title"
+                            class="form-control"
+                            value="{{ post.title }}"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="mb-3">
+
+                        <label class="form-label">Conteúdo</label>
+
+                        <textarea
+                            name="body"
+                            class="form-control"
+                            rows="6"
+                            required
+                        >{{ post.body }}</textarea>
+
+                    </div>
+
+                    {% if post.imagem_post %}
+
+                    <div class="mb-3">
+
+                        <label class="form-label d-block">
+                            Imagem atual
+                        </label>
+
+                        <img
+                            src="{{ url_for('static', filename='uploads/' + post.imagem_post) }}"
+                            alt="Imagem atual da publicação"
+                            class="img-fluid rounded mb-2"
+                            style="max-height: 220px;"
+                        >
+
+                    </div>
+
+                    {% endif %}
+
+                    <div class="mb-4">
+
+                        <label class="form-label">
+                            Escolher nova imagem
+                        </label>
+
+                        <input
+                            type="file"
+                            name="imagem_post"
+                            class="form-control"
+                            accept="image/png,image/jpeg,image/gif,image/webp"
+                        >
+
+                        <div class="form-text">
+                            Se não escolher uma nova imagem, a imagem atual será mantida.
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex gap-2">
+
+                        <button type="submit" class="btn btn-primary">
+                            Salvar alterações
+                        </button>
+
+                        <a href="{{ url_for('blog.index') }}"
+                           class="btn btn-secondary">
+                            Cancelar
+                        </a>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
 {% endblock %}
